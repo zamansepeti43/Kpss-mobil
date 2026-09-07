@@ -41,7 +41,24 @@ const allScripts=[...coreScripts,...enhancementScripts];
 const escaped=allScripts.map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
 const scriptPattern=new RegExp(`<script(?:\\s+defer)?\\s+src=["'](?:${escaped})["']\\s*><\\/script>`, 'g');
 html=html.replace(scriptPattern,'');
-const loader=`<script defer src="${coreName}"></script><script>\n(()=>{\n let loaded=false;\n const load=()=>{\n   if(loaded)return;\n   loaded=true;\n   const s=document.createElement('script');\n   s.src='${enhancementName}';\n   s.defer=true;\n   document.head.appendChild(s);\n };\n document.addEventListener('click',e=>{\n   if(e.target.closest('[data-go]:not([data-go="home"])'))load();\n },{capture:true,once:false});\n const schedule=window.requestIdleCallback||((cb)=>setTimeout(cb,1200));\n schedule(load,{timeout:1800});\n})();\n</script>`;
+const loader=`<script defer src="${coreName}"></script><script>
+(()=>{
+ let loaded=false;
+ const load=()=>{
+   if(loaded)return;
+   loaded=true;
+   const s=document.createElement('script');
+   s.src='${enhancementName}';
+   s.defer=true;
+   document.head.appendChild(s);
+ };
+ // Never execute the heavy question/curriculum bundle on the home screen.
+ // It is fetched only when the user actually navigates away from Home.
+ document.addEventListener('click',e=>{
+   if(e.target.closest('[data-go]:not([data-go="home"])'))load();
+ },{capture:true,passive:true});
+})();
+</script>`;
 html=html.replace('</body>',`${loader}</body>`);
 fs.writeFileSync(indexPath,html,'utf8');
 console.log(`KPSS-Mobil static build: core=${coreName}, enhancement=${enhancementName}`);
