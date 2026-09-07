@@ -4,60 +4,80 @@ const crypto=require('crypto');
 
 const root=process.cwd();
 const indexPath=path.join(root,'index.html');
-const coreScripts=['app.js','content.js'];
-const enhancementScripts=[
-  'question-engine.js',
-  'question-bank-full.js',
-  'curriculum-expansion.js',
-  'question-bank-fixes.js',
-  'question-bank-complete.js',
-  'exam-content-upgrade.js',
-  'question-engine-v4.js',
-  'question-engine-v5.js',
-  'curriculum-ui.js',
-  'difficulty-ui.js',
-  'question-engine-bind.js',
-  'past.js',
-  'curriculum-subject-sync.js'
+const coreScripts=['content.js'];
+
+/*
+ * Production uses ONE browser runtime. The previous build loaded several
+ * overlapping question/exam/navigation engines which all attached global
+ * click handlers and performed large synchronous bank preparation. That made
+ * mobile taps appear frozen and allowed one engine to swallow another one's
+ * navigation event.
+ *
+ * Keep content data separate from UI/runtime. The runtime below owns routing,
+ * questions, exams, stats, profile and plan state with one event router.
+ */
+const runtimeSource=`(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
+const subjects=[
+ {name:'Türkçe',icon:'📖',tone:'blue',group:'gy',pct:86,topics:['Sözcükte Anlam','Cümlede Anlam','Paragraf','Dil Bilgisi','Yazım Kuralları','Noktalama']},
+ {name:'Matematik',icon:'▦',tone:'violet',group:'gy',pct:61,topics:['Temel Kavramlar','Sayılar','Bölme-Bölünebilme','Problemler','Oran-Orantı','Kümeler','Fonksiyon','Permütasyon']},
+ {name:'Tarih',icon:'🏛',tone:'red',group:'gk',pct:78,topics:['İlk Türk Devletleri','Osmanlı Kuruluş','Osmanlı Kültür','Kurtuluş Savaşı','Atatürk İlkeleri','Cumhuriyet Dönemi']},
+ {name:'Coğrafya',icon:'🌐',tone:'blue',group:'gk',pct:70,topics:['Türkiye Fiziki Coğrafyası','İklim','Nüfus','Ekonomik Coğrafya','Bölgeler','Harita Bilgisi']},
+ {name:'Vatandaşlık',icon:'⚖',tone:'orange',group:'gk',pct:84,topics:['Hukukun Temelleri','Anayasa','Yasama','Yürütme','Yargı','İdare Hukuku']},
+ {name:'Güncel Bilgiler',icon:'▤',tone:'violet',group:'gk',pct:73,topics:['Türkiye Gündemi','Dünya Gündemi','Bilim ve Teknoloji','Kültür ve Sanat','Uluslararası Kuruluşlar','Ekonomi']}
 ];
+const bank=Array.isArray(window.KPSS_BANK)?window.KPSS_BANK:[];
+let state={correct:0,wrong:0,answered:0,wrongs:[],favorites:[],later:[],xp:0,planDone:[]};
+try{const saved=JSON.parse(localStorage.getItem('kpssState')||'null');if(saved&&typeof saved==='object')state={...state,...saved};}catch{}
+const save=()=>{try{localStorage.setItem('kpssState',JSON.stringify(state));}catch{}};
+let currentSubject='Matematik',currentTopic='',qIndex=0,selected=null,answered=false,qTimer=null;
+let examSize=120,examIndex=0,examAnswers=[],examQuestions=[],examStarted=0,examTimer=null;
+const plans=[['Matematik','Problemler • 20 soru','Soru çözümü'],['Türkçe','Paragraf • 15 soru','Hızlı okuma'],['Tarih','Osmanlı • 10 soru','Konu tekrarı'],['Genel tekrar','Yanlışlar • 10 soru','Tekrar']];
+function toast(text){const x=$('toast');if(!x)return;x.textContent=text;x.classList.add('show');clearTimeout(window.__kpToast);window.__kpToast=setTimeout(()=>x.classList.remove('show'),1600)}
+function stopTimers(){clearInterval(qTimer);clearInterval(examTimer);qTimer=null;examTimer=null}
+function show(id){stopTimers();document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));document.querySelectorAll('.bottom button').forEach(b=>b.classList.toggle('on',b.dataset.go===id));
+ if(id==='home')renderHome();else if(id==='subjects')renderSubjects();else if(id==='topic')renderTopics();else if(id==='question'){renderQuestion();startQuestionTimer();}else if(id==='exams')renderExams();else if(id==='examrun'){renderExamRun();startExamTimer();}else if(id==='result')renderResult();else if(id==='wrongs')renderWrongs();else if(id==='stats')renderStats();else if(id==='profile')renderProfile();else if(id==='past')renderPast();else if(id==='plan')renderPlan();}
+function renderHome(){const done=Math.min(50,Number(state.answered)||0),pct=Math.round(done/50*100);if($('goalCount'))$('goalCount').innerHTML=done+' <span>/ 50 soru</span>';if($('goalPct'))$('goalPct').textContent='%'+pct;if($('goalBar'))$('goalBar').style.width=pct+'%';if($('ring'))$('ring').style.background='conic-gradient(#24dcb8 '+pct+'%,#263b4e 0)';if($('todayWork'))$('todayWork').innerHTML=subjects.slice(1,4).map(s=>'<div class="workrow"><span class="mini '+s.tone+'">'+esc(s.name[0])+'</span><span><b>'+esc(s.name)+'</b> • '+esc(s.topics[0])+'</span><em>%'+s.pct+'</em></div>').join('');const pd=state.planDone.length;if($('planProgress'))$('planProgress').textContent=pd+' / 4 tamamlandı';if($('planBar'))$('planBar').style.width=(pd/4*100)+'%'}
+function renderSubjects(){const input=$('subjectSearch'),q=(input?.value||'').toLocaleLowerCase('tr-TR');const active=document.querySelector('#subjects .tabs button.active')?.dataset.tab||'gy';const list=$('subjectList');if(!list)return;list.innerHTML=subjects.map((s,i)=>({s,i})).filter(x=>x.s.group===active&&(!q||x.s.name.toLocaleLowerCase('tr-TR').includes(q)||x.s.topics.some(t=>t.toLocaleLowerCase('tr-TR').includes(q)))).map(({s,i})=>'<button class="subject" data-sub="'+i+'"><span class="subicon '+s.tone+'">'+s.icon+'</span><span class="subinfo"><b>'+esc(s.name)+'</b><small>'+s.topics.length+' konu • '+Math.max(21,bank.filter(q=>q.subject===s.name).length)+' soru</small></span><span class="score">%'+s.pct+'</span><span>›</span></button>').join('')||'<section class="card"><b>Sonuç bulunamadı</b><p class="muted">Başka bir ders veya konu deneyin.</p></section>'}
+function renderTopics(){const list=$('topicList');if(!list)return;const s=subjects.find(x=>x.name===currentSubject)||subjects[1];list.innerHTML=s.topics.map((t,i)=>'<button class="topic" data-topic="'+esc(t)+'"><span class="grow"><b>'+esc(t)+'</b><small>'+Math.max(0,bank.filter(q=>q.subject===s.name&&q.topic===t).length)+' soru • çalışma konusu</small></span><span class="topicScore '+(i%4===0?'low':'')+'">%'+Math.max(55,s.pct-i*2)+'</span><span>›</span></button>').join('')}
+function topicQuestions(){const base=bank.filter(q=>q.subject===currentSubject&&(!currentTopic||q.topic===currentTopic));return base.length?base:bank.filter(q=>q.subject===currentSubject).length?bank.filter(q=>q.subject===currentSubject):bank}
+function renderQuestion(){const list=topicQuestions();const q=list[qIndex%list.length];if(!q)return;if($('qcategory'))$('qcategory').textContent=q.subject+' • '+q.topic;if($('qsubject'))$('qsubject').textContent=q.subject;if($('qnum'))$('qnum').textContent=qIndex+1;if($('qtotal'))$('qtotal').textContent=list.length;if($('qtext'))$('qtext').textContent=q.text;if($('qbar'))$('qbar').style.width=((qIndex%10+1)*10)+'%';if($('options'))$('options').innerHTML=q.opts.map((o,i)=>'<button class="option '+(selected===i?'selected ':'')+(answered&&i===q.a?'correct ':'')+(answered&&selected===i&&i!==q.a?'wrong':'')+'" data-option="'+i+'"><span class="letter">'+String.fromCharCode(65+i)+'</span>'+esc(o)+'<span class="mark">'+(answered&&i===q.a?'✓':answered&&selected===i?'×':'')+'</span></button>').join('');if($('explain')){$('explain').style.display=answered?'block':'none';$('explain').innerHTML=answered?'<b>Çözüm</b><p>'+esc(q.e)+'</p>':'';}if($('answerBtn'))$('answerBtn').textContent=answered?'Sonraki Soru →':'Cevabı İşaretle'}
+function startQuestionTimer(){let left=102;const tick=()=>{if(!$('timer'))return;$('timer').textContent=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0');if(left<=0){clearInterval(qTimer);toast('Süre doldu');return}left--;};tick();qTimer=setInterval(tick,1000)}
+function renderExams(){const sizes=[[10,'15 dakika','Hızlı Test'],[20,'30 dakika','Standart Deneme'],[30,'45 dakika','Yoğun Deneme'],[60,'90 dakika','Tam Performans'],[120,'130 dakika','Tam KPSS']];const list=$('examList');if(!list)return;list.innerHTML=sizes.map(x=>'<button class="examrow '+(examSize===x[0]?'selected':'')+'" data-examsize="'+x[0]+'"><span class="eico">▣</span><b>'+x[2]+'<small>'+x[0]+' Soru</small></b><small>~ '+x[1]+'</small><span>›</span></button>').join('')}
+function beginExam(){examQuestions=[];const source=bank.length?bank:[{subject:'KPSS',topic:'Genel',text:'İçerik yüklenemedi.',opts:['A','B','C','D','E'],a:0,e:'İçerik bulunamadı.'}];for(let i=0;i<examSize;i++)examQuestions.push(source[i%source.length]);examIndex=0;examAnswers=Array(examSize).fill(null);examStarted=Date.now();show('examrun')}
+function startExamTimer(){let duration=examSize===10?15:examSize===20?30:examSize===30?45:examSize===60?90:130;const tick=()=>{const left=Math.max(0,duration*60-Math.floor((Date.now()-examStarted)/1000));if($('examTimer'))$('examTimer').textContent=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0');if(left<=0)finishExam();};tick();examTimer=setInterval(tick,1000)}
+function renderExamRun(){const q=examQuestions[examIndex];if(!q)return;if($('examNumbers'))$('examNumbers').innerHTML=examQuestions.map((_,i)=>'<span class="'+(i===examIndex?'current ':'')+(examAnswers[i]!==null?'done':'')+'">'+(i+1)+'</span>').join('');if($('examQnum'))$('examQnum').textContent=examIndex+1;if($('examQtext'))$('examQtext').textContent=q.text;if($('examOptions'))$('examOptions').innerHTML=q.opts.map((o,i)=>'<button class="option '+(examAnswers[examIndex]===i?'selected':'')+'" data-examoption="'+i+'"><span class="letter">'+String.fromCharCode(65+i)+'</span>'+esc(o)+'</button>').join('');const c=examAnswers.filter((a,i)=>a!==null&&a===examQuestions[i].a).length,w=examAnswers.filter((a,i)=>a!==null&&a!==examQuestions[i].a).length;if($('examCorrect'))$('examCorrect').textContent=c;if($('examWrong'))$('examWrong').textContent=w;if($('examBlank'))$('examBlank').textContent=examSize-c-w}
+function finishExam(){clearInterval(examTimer);const c=examAnswers.filter((a,i)=>a!==null&&a===examQuestions[i].a).length,w=examAnswers.filter((a,i)=>a!==null&&a!==examQuestions[i].a).length,b=examSize-c-w;state.correct+=c;state.wrong+=w;state.answered+=examSize;state.xp+=examSize;save();if($('resultNet'))$('resultNet').textContent=(c-w/4).toFixed(2).replace('.',',');if($('rCorrect'))$('rCorrect').textContent=c;if($('rWrong'))$('rWrong').textContent=w;if($('rBlank'))$('rBlank').textContent=b;if($('rSuccess'))$('rSuccess').textContent='%'+Math.round(c/examSize*100);if($('rTime'))$('rTime').textContent=Math.max(1,Math.round((Date.now()-examStarted)/60000))+' dk';show('result');toast('Deneme tamamlandı 🏆')}
+function renderResult(){}
+function renderWrongs(){const l=$('wrongList');if(!l)return;if(!state.wrongs.length){l.innerHTML='<section class="card"><b>Harika! 🎉</b><p class="muted">Henüz yanlış kaydın yok.</p></section>';return}l.innerHTML=state.wrongs.map((w,i)=>'<section class="card" style="margin-bottom:9px"><small>Yanlış soru '+(i+1)+'</small><h3 style="font-size:12px;line-height:1.5">'+esc(w.text||'Soru')+'</h3><button class="primary" data-retry="'+i+'">Tekrar Çöz</button></section>').join('')}
+function renderStats(){const total=state.answered||0,correct=state.correct||0;if($('totalQ'))$('totalQ').textContent=total;if($('success'))$('success').textContent='%'+(total?Math.round(correct/total*100):0);if($('net'))$('net').textContent=(correct-(state.wrong||0)/4).toFixed(1).replace('.',',')}
+function renderProfile(){const xp=state.xp||0;if($('level'))$('level').textContent=Math.max(1,Math.floor(xp/400)+1);if($('xpText'))$('xpText').textContent=(xp%2000).toLocaleString('tr-TR')+' / 2.000 XP';if($('xpBar'))$('xpBar').style.width=Math.min(100,xp%2000/20)+'%';if($('calendar'))$('calendar').innerHTML=Array.from({length:28},(_,i)=>'<div class="day '+(i%7===6?'active':'')+'">'+(i+1)+'<br><small>'+(i%3===0?'✓':'•')+'</small></div>').join('')}
+function renderPast(){const l=$('pastList');if(!l)return;const years=['2025','2024','2023','2022','2021','2020','2019','2018','2017','2016','2015','2014','2013','2012','2011','2010'];l.innerHTML=years.map(y=>'<section class="card" style="margin-bottom:8px"><div class="row"><span><b>KPSS '+y+'</b><small class="muted">Resmî soru kitapçığı ve cevap anahtarı</small></span><button class="link" data-action="pastInfo">Bilgi</button></div></section>').join('')}
+function renderPlan(){const l=$('planList');if(!l)return;l.innerHTML=plans.map((p,i)=>'<section class="plan"><div class="row"><b>'+esc(p[0])+'</b><button class="link" data-plan="'+i+'">'+(state.planDone.includes(i)?'Tamamlandı':'Tamamla')+'</button></div><p>'+esc(p[1])+' • '+esc(p[2])+'</p></section>').join('');const pct=Math.round(state.planDone.length/4*100);if($('weekPct'))$('weekPct').textContent='%'+pct;if($('weekBar'))$('weekBar').style.width=pct+'%'}
+function modal(title,body){if($('modalTitle'))$('modalTitle').textContent=title;if($('modalBody'))$('modalBody').innerHTML=body;if($('modal'))$('modal').classList.add('open')}
+function action(name,target){switch(name){case'startExam':beginExam();break;case'examPrev':if(examIndex>0){examIndex--;renderExamRun();}break;case'examNext':if(examIndex<examSize-1){examIndex++;renderExamRun();}else finishExam();break;case'examoption':break;case'favorite':state.favorites.push(qIndex);save();toast('Favorilere eklendi');break;case'later':state.later.push(qIndex);save();toast('Sonra çöz listesine eklendi');break;case'explain':const q=topicQuestions()[qIndex%topicQuestions().length];modal('Çözüm','<p>'+esc(q.e)+'</p>');break;case'notify':modal('Bildirimler','<p>Yeni bildirim bulunmuyor. 🔔</p>');break;case'settings':modal('Ayarlar','<p>Uygulama verileri cihazında saklanır.</p><button class="primary" data-action="resetData">İlerlemeyi Sıfırla</button>');break;case'resetData':state={correct:0,wrong:0,answered:0,wrongs:[],favorites:[],later:[],xp:0,planDone:[]};save();renderHome();toast('İlerleme sıfırlandı');break;case'closeModal':$('modal')?.classList.remove('open');break;case'clearWrongs':state.wrongs=[];save();renderWrongs();toast('Yanlışlar temizlendi');break;case'confirmExit':show('exams');break;case'resetExam':examSize=120;renderExams();toast('Deneme seçimi sıfırlandı');break;case'focusSearch':$('subjectSearch')?.focus();break;case'editPlan':toast('Plan düzenleme hazır');break;case'allBadges':modal('Rozetler','<p>Çalışmaya devam ettikçe yeni rozetler açılır. 🏆</p>');break;case'topicStats':modal(currentSubject+' istatistik','<p>Bu ekran konu bazlı ilerlemeyi gösterir.</p>');break;case'topicNotes':modal('Notlarım','<p>Bu konu için henüz not eklenmedi.</p>');break;case'statsSubjects':toast('Ders istatistikleri');break;case'statsTopics':toast('Konu istatistikleri');break;case'period':toast('Son 30 gün');break;case'reviewExam':show('examrun');break;case'resultAnalysis':show('stats');break;case'share':toast('Sonuç paylaşımı hazır');break;case'pastInfo':modal('ÖSYM arşivi','<p>Çıkmış sorular telifli olduğu için uygulama içinde kopyalanmaz. Resmî ÖSYM soru kitapçıkları kullanılmalıdır.</p>');break;}}
+function handleClick(e){const go=e.target.closest('[data-go]');if(go){e.preventDefault();show(go.dataset.go);return}const sub=e.target.closest('[data-sub]');if(sub){const s=subjects[Number(sub.dataset.sub)];if(s){currentSubject=s.name;currentTopic='';if($('topicTitle'))$('topicTitle').textContent=s.name;if($('topicName'))$('topicName').textContent=s.name;if($('topicMeta'))$('topicMeta').textContent=s.topics.length+' konu';show('topic');}return}const topic=e.target.closest('[data-topic]');if(topic){currentTopic=topic.dataset.topic;selected=null;answered=false;qIndex=0;show('question');return}const size=e.target.closest('[data-examsize]');if(size){examSize=Number(size.dataset.examsize)||120;renderExams();return}const op=e.target.closest('[data-option]');if(op){selected=Number(op.dataset.option);renderQuestion();return}const eo=e.target.closest('[data-examoption]');if(eo){examAnswers[examIndex]=Number(eo.dataset.examoption);renderExamRun();return}const plan=e.target.closest('[data-plan]');if(plan){const i=Number(plan.dataset.plan);if(state.planDone.includes(i))state.planDone=state.planDone.filter(x=>x!==i);else state.planDone.push(i);save();renderPlan();renderHome();return}const retry=e.target.closest('[data-retry]');if(retry){qIndex=0;selected=null;answered=false;show('question');return}const btn=e.target.closest('[data-action]');if(btn){e.preventDefault();const name=btn.dataset.action;if(name==='answerBtn'){if(answered){qIndex++;selected=null;answered=false;}else{const list=topicQuestions(),q=list[qIndex%list.length];if(selected===null){toast('Önce bir seçenek işaretle');return}answered=true;if(selected!==q.a){state.wrong++;state.wrongs.unshift(q);state.wrongs=state.wrongs.slice(0,100);}else state.correct++;state.answered++;save();}renderQuestion();return}if(name==='examoption')return;action(name,btn);return}}
+document.addEventListener('click',handleClick,{passive:false});
+document.addEventListener('input',e=>{if(e.target.id==='subjectSearch')renderSubjects()});
+document.addEventListener('click',e=>{const tab=e.target.closest('#subjects .tabs button');if(tab){document.querySelectorAll('#subjects .tabs button').forEach(b=>b.classList.remove('active'));tab.classList.add('active');renderSubjects();}});
+renderHome();
+window.__KPSS_RUNTIME__={show,bank,state};
+})();`;
 
-function bundleFiles(files){
-  return files.map(file=>`\n/* --- ${file} --- */\n${fs.readFileSync(path.join(root,file),'utf8')}\n`).join('');
-}
-function writeBundle(prefix,files){
-  const source=bundleFiles(files);
-  const hash=crypto.createHash('sha256').update(source).digest('hex').slice(0,12);
-  const name=`${prefix}.${hash}.js`;
-  fs.writeFileSync(path.join(root,name),source,'utf8');
-  return name;
-}
-
-const coreName=writeBundle('app.core',coreScripts);
-const enhancementName=writeBundle('app.enhance',enhancementScripts);
+function writeBundle(prefix,source){const hash=crypto.createHash('sha256').update(source).digest('hex').slice(0,12);const name=prefix+'.'+hash+'.js';fs.writeFileSync(path.join(root,name),source,'utf8');return name;}
+function bundleFiles(files){return files.map(file=>`\n/* --- ${file} --- */\n${fs.readFileSync(path.join(root,file),'utf8')}\n`).join('');}
+const coreName=writeBundle('app.core',bundleFiles(coreScripts));
+const runtimeName=writeBundle('app.runtime',runtimeSource);
 
 let html=fs.readFileSync(indexPath,'utf8');
-const allScripts=[...coreScripts,...enhancementScripts,'question-bank-audit.js'];
+const allScripts=['app.js','content.js','question-engine.js','question-bank-full.js','curriculum-expansion.js','question-bank-fixes.js','question-bank-audit.js','question-bank-complete.js','exam-content-upgrade.js','question-engine-v4.js','question-engine-v5.js','curriculum-ui.js','difficulty-ui.js','question-engine-bind.js','past.js','curriculum-subject-sync.js'];
 const escaped=allScripts.map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
 const scriptPattern=new RegExp(`<script(?:\\s+defer)?\\s+src=["'](?:${escaped})["']\\s*><\\/script>`, 'g');
 html=html.replace(scriptPattern,'');
-const loader=`<script defer src="${coreName}"></script><script>
-(()=>{
- let loaded=false;
- const load=()=>{
-   if(loaded)return;
-   loaded=true;
-   const s=document.createElement('script');
-   s.src='${enhancementName}';
-   s.defer=true;
-   document.head.appendChild(s);
- };
- // Keep Home completely free of the large question/curriculum bundle.
- // Load the enhancement bundle only after the user actually leaves Home.
- document.addEventListener('click',e=>{
-   if(e.target.closest('[data-go]:not([data-go="home"])'))load();
- },{capture:true,passive:true});
-})();
-</script>`;
-html=html.replace('</body>',`${loader}</body>`);
+html=html.replace(/<script>\s*\(\(\)=>\{[\s\S]*?\}\)\(\);\s*<\/script>/g,'');
+const loader=`<script defer src="${coreName}"></script><script defer src="${runtimeName}"></script>`;
+html=html.replace('</body>',loader+'</body>');
 fs.writeFileSync(indexPath,html,'utf8');
-console.log(`KPSS-Mobil static build: core=${coreName}, enhancement=${enhancementName}`);
+console.log('KPSS-Mobil single-runtime build: core='+coreName+', runtime='+runtimeName);
