@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "echo 'KPSS MOBİL static build'",
+  "buildCommand": "node build.js",
   "outputDirectory": ".",
   "installCommand": ""
 }
