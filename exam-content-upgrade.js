@@ -1,8 +1,4 @@
-/* KPSS-Mobil — deneme paketi + içerik tamamlama köprüsü + gerçek sınav dağılımı */
-(function(){
-'use strict';
-document.write('<script src="question-bank-complete.js"></script>');
-})();
+/* KPSS-Mobil — deneme paketi + gerçek sınav dağılımı */
 (function(){
 'use strict';
 const subjects=['Türkçe','Matematik','Tarih','Coğrafya','Vatandaşlık','Güncel Bilgiler'];
