@@ -33,9 +33,11 @@ const bundleName=`app.bundle.${hash}.js`;
 fs.writeFileSync(path.join(root,bundleName),bundle,'utf8');
 
 let html=fs.readFileSync(indexPath,'utf8');
-const scriptPattern=new RegExp(`<script\\s+src=["'](?:${scripts.map(s=>s.replace(/\\./g,'\\.')).join('|')})["']\\s*><\\/script>`, 'g');
-html=html.replace(scriptPattern,`<script defer src="${bundleName}"></script>`);
+const escaped=scripts.map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
+const scriptPattern=new RegExp(`<script(?:\\s+defer)?\\s+src=["'](?:${escaped})["']\\s*><\\/script>`, 'g');
+html=html.replace(scriptPattern,'');
+html=html.replace('</body>',`<script defer src="${bundleName}"></script></body>`);
 
-// Keep a single deferred bundle in the production HTML; the source index remains readable.
+// Production gets one deferred JS request instead of 16 separate files.
 fs.writeFileSync(indexPath,html,'utf8');
 console.log(`KPSS-Mobil static build: ${scripts.length} JS files bundled into ${bundleName}`);
