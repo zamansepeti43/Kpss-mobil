@@ -3,5 +3,19 @@
   "framework": null,
   "buildCommand": "node build.js",
   "outputDirectory": ".",
-  "installCommand": ""
+  "installCommand": "",
+  "headers": [
+    {
+      "source": "/app.bundle.(.*).js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/app.css",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    }
+  ]
 }
