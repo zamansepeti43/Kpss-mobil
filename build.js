@@ -10,7 +10,6 @@ const enhancementScripts=[
   'question-bank-full.js',
   'curriculum-expansion.js',
   'question-bank-fixes.js',
-  'question-bank-audit.js',
   'question-bank-complete.js',
   'exam-content-upgrade.js',
   'question-engine-v4.js',
@@ -37,7 +36,7 @@ const coreName=writeBundle('app.core',coreScripts);
 const enhancementName=writeBundle('app.enhance',enhancementScripts);
 
 let html=fs.readFileSync(indexPath,'utf8');
-const allScripts=[...coreScripts,...enhancementScripts];
+const allScripts=[...coreScripts,...enhancementScripts,'question-bank-audit.js'];
 const escaped=allScripts.map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
 const scriptPattern=new RegExp(`<script(?:\\s+defer)?\\s+src=["'](?:${escaped})["']\\s*><\\/script>`, 'g');
 html=html.replace(scriptPattern,'');
@@ -52,8 +51,8 @@ const loader=`<script defer src="${coreName}"></script><script>
    s.defer=true;
    document.head.appendChild(s);
  };
- // Never execute the heavy question/curriculum bundle on the home screen.
- // It is fetched only when the user actually navigates away from Home.
+ // Keep Home completely free of the large question/curriculum bundle.
+ // Load the enhancement bundle only after the user actually leaves Home.
  document.addEventListener('click',e=>{
    if(e.target.closest('[data-go]:not([data-go="home"])'))load();
  },{capture:true,passive:true});
