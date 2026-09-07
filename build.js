@@ -6,10 +6,9 @@ const indexPath=path.join(root,'index.html');
 function write(name,src){const h=crypto.createHash('sha256').update(src).digest('hex').slice(0,12);const file=name+'.'+h+'.js';fs.writeFileSync(path.join(root,file),src);return file}
 const core=write('app.core',fs.readFileSync(path.join(root,'content.js'),'utf8'));
 const runtime=write('app.runtime',fs.readFileSync(path.join(root,'runtime.js'),'utf8'));
-const ux=write('app.ux',fs.readFileSync(path.join(root,'ux-patch.js'),'utf8'));
 let html=fs.readFileSync(indexPath,'utf8');
 html=html.replace(/<script[^>]*src=["'][^"']+["'][^>]*><\/script>/g,'');
 html=html.replace(/<script>[^]*?<\/script>/g,'');
-html=html.replace('</body>',`<script defer src="${core}"></script><script defer src="${runtime}"></script><script defer src="${ux}"></script></body>`);
+html=html.replace('</body>',`<script defer src="${core}"></script><script defer src="${runtime}"></script></body>`);
 fs.writeFileSync(indexPath,html);
-console.log('KPSS-Mobil lightweight build: '+core+' + '+runtime+' + '+ux);
+console.log('KPSS-Mobil lightweight build: '+core+' + '+runtime);
