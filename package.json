@@ -5,7 +5,7 @@
   "description": "KPSS MOBİL — Akıllı Soru & Deneme Platformu",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node build.js",
     "preview": "vite preview"
   },
   "devDependencies": {
