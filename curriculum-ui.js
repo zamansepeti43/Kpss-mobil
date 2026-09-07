@@ -1,4 +1,4 @@
-/* KPSS-Mobil — full curriculum + 5 x 20-question topic tests */
+/* KPSS-Mobil — full curriculum + doğrulanmış konu testleri */
 (function(){
 'use strict';
 const C=window.KPSS_CURRICULUM||{};
@@ -8,31 +8,13 @@ const topics=subject=>(C[subject]||[]);
 const hash=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0};
 function seededShuffle(arr,seed){const a=arr.slice();let x=hash(seed)||1;for(let i=a.length-1;i>0;i--){x=Math.imul(x^x>>>13,16777619)>>>0;x=(x+(x<<7))>>>0;const j=x%(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));document.querySelectorAll('.bottom button').forEach(b=>b.classList.toggle('on',b.dataset.go===id));}
-function fallback(subject,topic,n){
- const near=(C[subject]||[]).filter(x=>x!==topic);
- const opts=[topic,...near].slice(0,5);while(opts.length<5)opts.push('Genel tekrar');
- return {subject,topic,text:`“${topic}” konusu için kavrama kontrolü ${n}. Aşağıdakilerden hangisi doğrudan bu konu başlığıyla ilgilidir?`,opts,a:0,e:`Doğru cevap “${topic}”. Bu özgün pratik soru ${topic} başlığının temel kavramını kontrol eder.`,difficulty:n%20<6?'Basit':n%20<15?'Orta':'Zor',source:'generated-practice'};
-}
-function makeVariants(base,needed){
- const p=base.slice();let i=0;
- while(p.length<needed){
-   const src=base[i%Math.max(1,base.length)]||fallback('', 'Genel tekrar',i+1);
-   const copy={...src,opts:Array.isArray(src.opts)?src.opts.slice():src.opts};
-   copy.text=`${src.text} — özgün kavrama varyantı ${i+1}`;
-   copy.e=src.e||'';copy.difficulty=['Basit','Orta','Zor'][i%3];copy.source='generated-practice';
-   p.push(copy);i++;
- }
- return p;
-}
-function pool(subject,topic){
- const base=bank().filter(q=>norm(q.subject)===norm(subject)&&norm(q.topic)===norm(topic)&&Array.isArray(q.opts)&&q.opts.length===5);
- const p=base.length?makeVariants(base,100):Array.from({length:100},(_,i)=>fallback(subject,topic,i+1));
- return p;
-}
+function pool(subject,topic){return bank().filter(q=>norm(q.subject)===norm(subject)&&norm(q.topic)===norm(topic)&&q.source==='generated-practice'&&Array.isArray(q.opts)&&q.opts.length===5);}
 function openTestPicker(subject,topic){
  let old=document.getElementById('topicTestPicker');if(old)old.remove();
+ const available=pool(subject,topic).length;
+ const ready=available>=100;
  const wrap=document.createElement('div');wrap.id='topicTestPicker';
- wrap.innerHTML=`<div class="topic-picker-backdrop"><div class="topic-picker-card"><button class="topic-picker-close" data-close-topic-picker>×</button><div class="eyebrow">KONU TESTİ</div><h3>${topic}</h3><p>Bu konuda 5 farklı test hazırlandı. Her test 20 sorudur.</p><div class="topic-test-grid">${[1,2,3,4,5].map(n=>`<button data-topic-test="${n}"><b>Test ${n}</b><small>20 Soru • Basit / Orta / Zor</small><span>Başla ›</span></button>`).join('')}</div></div></div>`;
+ wrap.innerHTML=`<div class="topic-picker-backdrop"><div class="topic-picker-card"><button class="topic-picker-close" data-close-topic-picker>×</button><div class="eyebrow">KONU TESTİ</div><h3>${topic}</h3>${ready?`<p>Bu konuda 5 farklı test hazırlandı. Her test 20 sorudur.</p><div class="topic-test-grid">${[1,2,3,4,5].map(n=>`<button data-topic-test="${n}"><b>Test ${n}</b><small>20 Soru • Basit / Orta / Zor</small><span>Başla ›</span></button>`).join('')}</div>`:`<div class="content-lock"><b>⏳ Bu konu henüz teste açılmadı.</b><p>Bu başlık için doğrulanmış soru havuzu tamamlanıyor. İçerik hazır olmadan yapay soru gösterilmeyecek.</p></div>`}</div></div>`;
  document.body.appendChild(wrap);
  wrap.querySelectorAll('[data-topic-test]').forEach(b=>b.addEventListener('click',()=>{const n=Number(b.dataset.topicTest);wrap.remove();start(subject,topic,n)}));
  wrap.querySelector('[data-close-topic-picker]').addEventListener('click',()=>wrap.remove());
@@ -42,38 +24,20 @@ function renderTopic(subject){
  const ts=topics(subject);
  document.getElementById('topicTitle').textContent=subject;
  document.getElementById('topicName').textContent=subject;
- document.getElementById('topicMeta').textContent=`${ts.length} konu • her konuda 5 test • test başına 20 soru`;
- list.innerHTML=ts.map(t=>{
-   const n=bank().filter(q=>norm(q.subject)===norm(subject)&&norm(q.topic)===norm(t)).length;
-   return `<button class="topic" data-full-topic="${encodeURIComponent(subject)}|${encodeURIComponent(t)}"><span class="grow"><b>${t}</b><small>5 test • 100 soru • 20 soru/test</small></span><span class="topicScore">${n>=100?'100+':n+' soru'}</span><span>›</span></button>`;
- }).join('');
+ document.getElementById('topicMeta').textContent=`${ts.length} konu • doğrulanmış havuz hazır oldukça 5 test`;
+ list.innerHTML=ts.map(t=>{const n=pool(subject,t).length;return `<button class="topic" data-full-topic="${encodeURIComponent(subject)}|${encodeURIComponent(t)}"><span class="grow"><b>${t}</b><small>${n>=100?'5 test • 100 soru • 20 soru/test':'İçerik hazırlanıyor • test kilitli'}</small></span><span class="topicScore">${n>=100?'100+':n+' soru'}</span><span>›</span></button>`;}).join('');
  show('topic');
 }
 let session=null,pos=0,chosen=null,locked=false;
 function start(subject,topic,testNo=1){
- const all=pool(subject,topic);
- const test=Number(testNo)||1;
- session=seededShuffle(all,`${subject}|${topic}|TEST-${test}`).slice((test-1)*20,test*20);
- if(session.length<20)session=makeVariants(session,20);
+ const all=pool(subject,topic); if(all.length<100){show('topic');return;}
+ const test=Number(testNo)||1; session=seededShuffle(all,`${subject}|${topic}|TEST-${test}`).slice((test-1)*20,test*20);
+ if(session.length<20){show('topic');return;}
  pos=0;chosen=null;locked=false;show('question');render();
 }
-function render(){
- const q=session&&session[pos];if(!q)return;
- document.getElementById('qtotal').textContent=session.length;document.getElementById('qnum').textContent=pos+1;document.getElementById('qcategory').textContent=q.subject+' • '+q.topic;document.getElementById('qsubject').textContent=q.subject;document.getElementById('qtext').textContent=q.text;document.getElementById('qbar').style.width=((pos+1)/session.length*100)+'%';
- document.getElementById('options').innerHTML=q.opts.map((o,i)=>`<button class="option ${chosen===i?'selected':''} ${locked&&i===q.a?'correct':''} ${locked&&chosen===i&&chosen!==q.a?'wrong':''}" data-curr-option="${i}"><span class="letter">${String.fromCharCode(65+i)}</span>${o}<span class="mark">${locked&&i===q.a?'✓':locked&&chosen===i?'×':''}</span></button>`).join('');
- document.getElementById('answerBtn').textContent=locked?'Sonraki Soru →':'Cevabı İşaretle';const ex=document.getElementById('explain');ex.style.display=locked?'block':'none';ex.innerHTML=locked?`<b>Çözüm</b><p>${q.e}</p>`:'';
-}
-function answer(){
- if(!session)return;const q=session[pos];
- if(!locked){if(chosen===null)return;locked=true;try{const s=JSON.parse(localStorage.getItem('kpssState')||'{}');s.correct=Number(s.correct||0)+(chosen===q.a?1:0);s.wrong=Number(s.wrong||0)+(chosen===q.a?0:1);s.answered=Number(s.answered||0)+1;s.xp=Number(s.xp||0)+10;s.byTopic=s.byTopic||{};s.byTopic[q.topic]=s.byTopic[q.topic]||{correct:0,wrong:0,answered:0};s.byTopic[q.topic].answered++;s.byTopic[q.topic][chosen===q.a?'correct':'wrong']++;if(chosen!==q.a){s.wrongs=s.wrongs||[];s.wrongs.unshift(q)}localStorage.setItem('kpssState',JSON.stringify(s))}catch(e){}render();return}
- pos++;chosen=null;locked=false;if(pos>=session.length){show('subjects');if(window.renderSubjects)window.renderSubjects();return}render();
-}
-document.addEventListener('click',function(e){
- const t=e.target.closest('[data-full-topic]');if(t){e.preventDefault();e.stopImmediatePropagation();const [s,x]=t.dataset.fullTopic.split('|').map(decodeURIComponent);openTestPicker(s,x);return}
- const o=e.target.closest('[data-curr-option]');if(o){e.preventDefault();e.stopImmediatePropagation();chosen=Number(o.dataset.currOption);render();return}
- const a=e.target.closest('#answerBtn');if(a&&session){e.preventDefault();e.stopImmediatePropagation();answer();return}
- const sub=e.target.closest('[data-sub]');if(sub&&window.KPSS_CURRICULUM){e.preventDefault();e.stopImmediatePropagation();const subjects=['Türkçe','Matematik','Tarih','Coğrafya','Vatandaşlık','Güncel Bilgiler'];const idx=Number(sub.dataset.sub);renderTopic(subjects[idx]||subjects[0]);return}
-},true);
-const style=document.createElement('style');style.textContent=`#topicTestPicker{position:fixed;inset:0;z-index:9999}.topic-picker-backdrop{position:absolute;inset:0;background:rgba(3,8,20,.78);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:18px}.topic-picker-card{width:min(520px,100%);max-height:90vh;overflow:auto;background:linear-gradient(160deg,#101d36,#15102c);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.45);color:#fff}.topic-picker-close{float:right;border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:50%;width:34px;height:34px;font-size:22px;cursor:pointer}.topic-picker-card .eyebrow{font-size:11px;font-weight:800;letter-spacing:1.5px;opacity:.6}.topic-picker-card h3{margin:8px 0 4px;font-size:24px}.topic-picker-card p{margin:0 0 18px;color:#aebbd1;font-size:13px}.topic-test-grid{display:grid;gap:10px}.topic-test-grid button{display:grid;grid-template-columns:1fr auto;gap:3px 12px;text-align:left;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.045);color:#fff;border-radius:16px;padding:15px;cursor:pointer}.topic-test-grid button:hover{border-color:rgba(120,150,255,.5);background:rgba(90,110,220,.1)}.topic-test-grid b{font-size:15px}.topic-test-grid small{grid-column:1;color:#9eabc1;font-size:11px}.topic-test-grid span{grid-column:2;grid-row:1/3;align-self:center;font-size:12px;font-weight:800;color:#b9c7ff}`;document.head.appendChild(style);
+function render(){const q=session&&session[pos];if(!q)return;document.getElementById('qtotal').textContent=session.length;document.getElementById('qnum').textContent=pos+1;document.getElementById('qcategory').textContent=q.subject+' • '+q.topic;document.getElementById('qsubject').textContent=q.subject;document.getElementById('qtext').textContent=q.text;document.getElementById('qbar').style.width=((pos+1)/session.length*100)+'%';document.getElementById('options').innerHTML=q.opts.map((o,i)=>`<button class="option ${chosen===i?'selected':''} ${locked&&i===q.a?'correct':''} ${locked&&chosen===i&&chosen!==q.a?'wrong':''}" data-curr-option="${i}"><span class="letter">${String.fromCharCode(65+i)}</span>${o}<span class="mark">${locked&&i===q.a?'✓':locked&&chosen===i?'×':''}</span></button>`).join('');document.getElementById('answerBtn').textContent=locked?'Sonraki Soru →':'Cevabı İşaretle';const ex=document.getElementById('explain');ex.style.display=locked?'block':'none';ex.innerHTML=locked?`<b>Çözüm</b><p>${q.e}</p>`:'';}
+function answer(){if(!session)return;const q=session[pos];if(!locked){if(chosen===null)return;locked=true;try{const s=JSON.parse(localStorage.getItem('kpssState')||'{}');s.correct=Number(s.correct||0)+(chosen===q.a?1:0);s.wrong=Number(s.wrong||0)+(chosen===q.a?0:1);s.answered=Number(s.answered||0)+1;s.xp=Number(s.xp||0)+10;s.byTopic=s.byTopic||{};s.byTopic[q.topic]=s.byTopic[q.topic]||{correct:0,wrong:0,answered:0};s.byTopic[q.topic].answered++;s.byTopic[q.topic][chosen===q.a?'correct':'wrong']++;if(chosen!==q.a){s.wrongs=s.wrongs||[];s.wrongs.unshift(q)}localStorage.setItem('kpssState',JSON.stringify(s))}catch(e){}render();return}pos++;chosen=null;locked=false;if(pos>=session.length){show('subjects');if(window.renderSubjects)window.renderSubjects();return}render();}
+document.addEventListener('click',function(e){const t=e.target.closest('[data-full-topic]');if(t){e.preventDefault();e.stopImmediatePropagation();const [s,x]=t.dataset.fullTopic.split('|').map(decodeURIComponent);openTestPicker(s,x);return}const o=e.target.closest('[data-curr-option]');if(o){e.preventDefault();e.stopImmediatePropagation();chosen=Number(o.dataset.currOption);render();return}const a=e.target.closest('#answerBtn');if(a&&session){e.preventDefault();e.stopImmediatePropagation();answer();return}const sub=e.target.closest('[data-sub]');if(sub&&window.KPSS_CURRICULUM){e.preventDefault();e.stopImmediatePropagation();const subjects=['Türkçe','Matematik','Tarih','Coğrafya','Vatandaşlık','Güncel Bilgiler'];const idx=Number(sub.dataset.sub);renderTopic(subjects[idx]||subjects[0]);return}},true);
+const style=document.createElement('style');style.textContent=`#topicTestPicker{position:fixed;inset:0;z-index:9999}.topic-picker-backdrop{position:absolute;inset:0;background:rgba(3,8,20,.78);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:18px}.topic-picker-card{width:min(520px,100%);max-height:90vh;overflow:auto;background:linear-gradient(160deg,#101d36,#15102c);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.45);color:#fff}.topic-picker-close{float:right;border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:50%;width:34px;height:34px;font-size:22px;cursor:pointer}.topic-picker-card .eyebrow{font-size:11px;font-weight:800;letter-spacing:1.5px;opacity:.6}.topic-picker-card h3{margin:8px 0 4px;font-size:24px}.topic-picker-card p{margin:0 0 18px;color:#aebbd1;font-size:13px}.topic-test-grid{display:grid;gap:10px}.topic-test-grid button{display:grid;grid-template-columns:1fr auto;gap:3px 12px;text-align:left;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.045);color:#fff;border-radius:16px;padding:15px;cursor:pointer}.topic-test-grid button:hover{border-color:rgba(120,150,255,.5);background:rgba(90,110,220,.1)}.topic-test-grid b{font-size:15px}.topic-test-grid small{grid-column:1;color:#9eabc1;font-size:11px}.topic-test-grid span{grid-column:2;grid-row:1/3;align-self:center;font-size:12px;font-weight:800;color:#b9c7ff}.content-lock{margin-top:18px;padding:18px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);border-radius:16px}.content-lock b{font-size:15px}.content-lock p{margin:8px 0 0}`;document.head.appendChild(style);
 window.KPSS_FULL_CURRICULUM=C;window.KPSS_TOPIC_TEST=start;window.renderFullTopics=renderTopic;
 })();
