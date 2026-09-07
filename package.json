@@ -1,0 +1,14 @@
+{
+  "name": "kpss-mobil",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KPSS MOBİL — Akıllı Soru & Deneme Platformu",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "latest"
+  }
+}
