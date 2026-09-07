@@ -5,3 +5,27 @@ const originalShow=window.show;window.show=function(id){originalShow(id);if(id==
 document.addEventListener('click',e=>{const pg=e.target.closest('[data-pastgroup]');if(pg){document.querySelectorAll('#past .pastTabs button').forEach(x=>x.classList.remove('active'));pg.classList.add('active');renderPast(pg.dataset.pastgroup)}if(e.target.closest('[data-action="pastInfo"]')){openModal('Çıkmış Sorular','<p class="muted">ÖSYM soru kitapçıkları ve cevap anahtarları resmi arşivden açılır. Soruların telif hakları ÖSYM’ye aittir.</p><a class="primary" style="display:block;text-align:center" href="https://www.osym.gov.tr/SinavGrubu/Menu/344" target="_blank" rel="noopener">ÖSYM KPSS Arşivini Aç ↗</a>')}});
 const pastStyle=document.createElement('style');pastStyle.textContent='.pastHome{width:100%;text-align:left;padding:13px 14px;margin:0 0 11px;background:#0b1b2a;border:1px solid #243d55;border-radius:15px;color:inherit}.pastHome .row{font-size:11px}.pastHome small{display:block;margin-top:4px;font-size:8px}.pastIntro{margin-bottom:10px}.pastIntro p{font-size:9px;line-height:1.5;color:var(--muted);margin:6px 0}.pastIntro small{font-size:8px;line-height:1.45;color:#8098ad}.pastTabs{overflow-x:auto;display:flex;gap:6px}.pastTabs button{white-space:nowrap}.pastYear{padding:12px;margin:8px 0;border:1px solid #1d354b;background:#0b1a28;border-radius:15px}.pastYear>.row{font-size:11px}.pastYear>.row small{display:block;margin-top:3px;font-size:8px;color:var(--muted)}.yearBadge{font-size:8px;color:#71aaff;background:#102747;border:1px solid #21436b;padding:5px 7px;border-radius:9px}.pastItem{display:flex;align-items:center;gap:8px;margin-top:8px;padding:9px;border-radius:11px;background:#081724;border:1px solid #172d41}.pastIcon{font-size:16px}.pastItem b{display:block;font-size:9px}.pastItem small{display:block;margin-top:3px;font-size:7px;color:var(--muted)}.pastLink{padding:7px 9px;border-radius:9px;background:#182e5c;color:#8cbcff;font-size:8px;font-weight:700}';document.head.appendChild(pastStyle);
 renderPast();
+
+/* Soru sayfası: her sorunun köşesinde Basit / Orta / Zor etiketi */
+(function(){
+'use strict';
+const bank=Array.isArray(window.KPSS_BANK)?window.KPSS_BANK:[];
+bank.forEach((q,i)=>{if(!q.difficulty){const n=(i*17+String(q.text||'').length+String(q.topic||'').length)%10;q.difficulty=n<4?'Basit':n<8?'Orta':'Zor';}});
+const style=document.createElement('style');
+style.textContent='.qcard{position:relative}.difficulty-badge{position:absolute;right:12px;top:12px;padding:4px 7px;border-radius:8px;font-size:8px;font-weight:800;letter-spacing:.1px;border:1px solid #36506a;background:#14283a;color:#9eb2c6}.difficulty-badge.basit{background:#0c3029;border-color:#168c76;color:#4ce0bd}.difficulty-badge.orta{background:#302711;border-color:#9b7523;color:#ffd05c}.difficulty-badge.zor{background:#35161e;border-color:#9b3345;color:#ff7d8b}#qtext{padding-right:58px}';
+document.head.appendChild(style);
+function ensureBadge(){
+ const card=document.querySelector('#question .qcard'),text=document.getElementById('qtext');
+ if(!card||!text)return;
+ let badge=document.getElementById('questionDifficulty');
+ if(!badge){badge=document.createElement('div');badge.id='questionDifficulty';badge.className='difficulty-badge';card.insertBefore(badge,text);}
+ const value=String(text.textContent||'').trim();
+ const q=bank.find(x=>String(x.text||'').trim()===value);
+ const level=q?.difficulty||'Orta';
+ badge.textContent=level;badge.className='difficulty-badge '+level.toLocaleLowerCase('tr-TR');
+}
+const target=document.getElementById('question');
+if(target)new MutationObserver(ensureBadge).observe(target,{subtree:true,childList:true,characterData:true});
+document.addEventListener('click',()=>setTimeout(ensureBadge,0),true);
+setTimeout(ensureBadge,200);
+})();
