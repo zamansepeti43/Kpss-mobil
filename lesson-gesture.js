@@ -1,15 +1,28 @@
 (()=>{
 'use strict';
-// Native-feeling lesson sheet gesture: content scrolls first; only after reaching
-// the very top does a downward continuation move the sheet and allow dismissal.
-const st={active:false,startY:0,startX:0,lastY:0,offset:0};
+// Lesson sheet: scroll the lesson content first. Only when the content is
+// already at scrollTop 0 can a downward pull drag the sheet and dismiss it.
+const css=document.createElement('style');
+css.textContent=`
+#modal.open .sheet{display:flex!important;flex-direction:column!important;max-height:calc(100vh - 52px)!important;overflow:hidden!important;touch-action:none!important}
+#modal.open #modalBody{display:block!important;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important;touch-action:pan-y!important;padding-bottom:24px!important}
+#modal.open #modalBody .lessonPro{min-height:100%!important}
+`;
+document.head.appendChild(css);
+
+const st={active:false,startY:0,lastY:0,offset:0,startedAtTop:false};
 const getSheet=()=>document.querySelector('#modal.open .sheet');
 const getScroll=sheet=>sheet?.querySelector('#modalBody')||sheet;
 
 document.addEventListener('touchstart',e=>{
   const sheet=getSheet(),t=e.touches?.[0];
   if(!sheet||!t)return;
-  st.active=true;st.startY=t.clientY;st.startX=t.clientX;st.lastY=t.clientY;st.offset=0;
+  const sc=getScroll(sheet);
+  st.active=true;
+  st.startY=t.clientY;
+  st.lastY=t.clientY;
+  st.offset=0;
+  st.startedAtTop=(sc.scrollTop<=0);
   sheet.style.transition='';
 },{capture:true,passive:true});
 
@@ -17,13 +30,24 @@ document.addEventListener('touchmove',e=>{
   if(!st.active)return;
   const sheet=getSheet(),t=e.touches?.[0];
   if(!sheet||!t){st.active=false;return;}
-  const sc=getScroll(sheet),dy=t.clientY-st.lastY,dx=t.clientX-st.startX,totalY=t.clientY-st.startY;
-  if(Math.abs(totalY)<Math.abs(dx))return;
-  // Let the lesson body scroll naturally while it still has content above.
-  if(sc.scrollTop>0){st.lastY=t.clientY;return;}
-  // We are at the top. A downward continuation now becomes sheet dragging.
-  if(dy>0){
-    st.offset=Math.min(260,st.offset+dy);
+  const sc=getScroll(sheet);
+  const dy=t.clientY-st.lastY;
+  const total=t.clientY-st.startY;
+  const dx=t.clientX-(e.touches[0]?.clientX||t.clientX);
+
+  // Never hijack horizontal gestures.
+  if(Math.abs(total)<Math.abs(dx))return;
+
+  // If content is above the top, native scrolling owns the gesture.
+  if(sc.scrollTop>0){
+    st.startedAtTop=false;
+    st.lastY=t.clientY;
+    return;
+  }
+
+  // Content is at the very top. A downward pull now belongs to the sheet.
+  if(dy>0 && st.startedAtTop){
+    st.offset=Math.min(300,st.offset+dy);
     if(st.offset>0){
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -45,15 +69,22 @@ document.addEventListener('touchend',e=>{
       sheet.style.transform='translateY(105%)';
       setTimeout(()=>{
         document.getElementById('modal')?.classList.remove('open');
-        sheet.style.transform='';sheet.style.transition='';
+        sheet.style.transform='';
+        sheet.style.transition='';
       },180);
     }else{
       sheet.style.transform='translateY(0)';
       setTimeout(()=>{sheet.style.transform='';sheet.style.transition=''},210);
     }
   }
-  st.active=false;st.offset=0;
+  st.active=false;
+  st.offset=0;
+  st.startedAtTop=false;
 },{capture:true,passive:true});
 
-document.addEventListener('touchcancel',()=>{const s=getSheet();if(s&&st.offset>0){s.style.transform='';s.style.transition=''}st.active=false;st.offset=0},{capture:true,passive:true});
+document.addEventListener('touchcancel',()=>{
+  const s=getSheet();
+  if(s&&st.offset>0){s.style.transform='';s.style.transition=''}
+  st.active=false;st.offset=0;st.startedAtTop=false;
+},{capture:true,passive:true});
 })();
