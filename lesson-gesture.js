@@ -1,11 +1,11 @@
 (()=>{
 'use strict';
-// Lesson sheet: scroll the lesson content first. Only when the content is
-// already at scrollTop 0 can a downward pull drag the sheet and dismiss it.
+// Lesson sheet owns the area above the fixed bottom navigation. Lesson content
+// scrolls to its real end before any downward pull can dismiss the sheet.
 const css=document.createElement('style');
 css.textContent=`
-#modal.open .sheet{display:flex!important;flex-direction:column!important;max-height:calc(100vh - 52px)!important;overflow:hidden!important;touch-action:none!important}
-#modal.open #modalBody{display:block!important;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important;touch-action:pan-y!important;padding-bottom:24px!important}
+#modal.open .sheet{display:flex!important;flex-direction:column!important;position:absolute!important;left:0!important;right:0!important;bottom:78px!important;max-height:calc(100vh - 130px)!important;overflow:hidden!important;touch-action:none!important}
+#modal.open #modalBody{display:block!important;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important;touch-action:pan-y!important;padding-bottom:28px!important}
 #modal.open #modalBody .lessonPro{min-height:100%!important}
 `;
 document.head.appendChild(css);
@@ -35,17 +35,16 @@ document.addEventListener('touchmove',e=>{
   const total=t.clientY-st.startY;
   const dx=t.clientX-(e.touches[0]?.clientX||t.clientX);
 
-  // Never hijack horizontal gestures.
   if(Math.abs(total)<Math.abs(dx))return;
 
-  // If content is above the top, native scrolling owns the gesture.
+  // While the lesson has content above the viewport, native scrolling owns it.
   if(sc.scrollTop>0){
     st.startedAtTop=false;
     st.lastY=t.clientY;
     return;
   }
 
-  // Content is at the very top. A downward pull now belongs to the sheet.
+  // Only a downward pull that starts at the very top can drag the sheet.
   if(dy>0 && st.startedAtTop){
     st.offset=Math.min(300,st.offset+dy);
     if(st.offset>0){
