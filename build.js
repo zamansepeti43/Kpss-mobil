@@ -9,9 +9,10 @@ const runtime=write('app.runtime',fs.readFileSync(path.join(root,'runtime.js'),'
 const ux=write('app.ux',fs.readFileSync(path.join(root,'ux-patch.js'),'utf8'));
 const pro=write('app.pro',fs.readFileSync(path.join(root,'pro-ui.js'),'utf8'));
 const settings=write('app.settings',fs.readFileSync(path.join(root,'settings-patch.js'),'utf8'));
+const lesson=write('app.lesson',fs.readFileSync(path.join(root,'lesson-ui.js'),'utf8'));
 let html=fs.readFileSync(indexPath,'utf8');
 html=html.replace(/<script[^>]*src=["'][^"']+["'][^>]*><\/script>/g,'');
 html=html.replace(/<script>[^]*?<\/script>/g,'');
-html=html.replace('</body>',`<script defer src="${core}"></script><script defer src="${runtime}"></script><script defer src="${ux}"></script><script defer src="${pro}"></script><script defer src="${settings}"></script></body>`);
+html=html.replace('</body>',`<script defer src="${core}"></script><script defer src="${runtime}"></script><script defer src="${ux}"></script><script defer src="${pro}"></script><script defer src="${settings}"></script><script defer src="${lesson}"></script></body>`);
 fs.writeFileSync(indexPath,html);
-console.log('KPSS-Mobil lightweight build: '+core+' + '+runtime+' + '+ux+' + '+pro+' + '+settings);
+console.log('KPSS-Mobil lightweight build: '+core+' + '+runtime+' + '+ux+' + '+pro+' + '+settings+' + '+lesson);
