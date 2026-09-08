@@ -1,0 +1,51 @@
+(()=>{
+'use strict';
+const ICONS={
+ home:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.7 12 3l9 7.7v9.8a.5.5 0 0 1-.5.5h-5.2v-6.2H8.7V21H3.5a.5.5 0 0 1-.5-.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+ book:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h12.5A1.5 1.5 0 0 1 19 6v14H6.5A2.5 2.5 0 0 1 4 17.5V6a1.5 1.5 0 0 1 1.5-1.5Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 17.5A2.5 2.5 0 0 0 6.5 20M8 8h7M8 11h7M8 14h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+ exam:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 8h8M8 12h8M8 16h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+ chart:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="m7 15 3-4 3 2 5-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ user:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 20c.7-3.5 3-5.3 6.5-5.3s5.8 1.8 6.5 5.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+ bolt:'<svg viewBox="0 0 24 24"><path d="m13.2 2-8 11h6.3L10.8 22l8-12h-6.2z" fill="currentColor"/></svg>',
+ grid:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="4" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="14" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="14" width="6" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>',
+ wrong:'<svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+ bell:'<svg viewBox="0 0 24 24"><path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 5 2 6 2 7H4.5c0-1 2-2 2-7Z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 20h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'
+};
+const style=document.createElement('style');
+style.textContent=`
+/* HIGH-FIDELITY MOBILE UI */
+:root{--p-bg:#07101c;--p-card:#0c1a2a;--p-card2:#0f2032;--p-line:#20374d;--p-text:#f5f7fb;--p-muted:#8d9db0;--p-blue:#3d7cff;--p-purple:#6557ff;--p-cyan:#26d8c0}
+html,body{background:#02060c!important}
+.app{padding:0!important;background:radial-gradient(80% 35% at 50% 0,#18395b 0%,#07121f 48%,#02060c 100%)!important}
+.phone{width:min(390px,100vw)!important;min-height:100vh!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:linear-gradient(180deg,#071321 0%,#040a12 100%)!important}
+.status{height:38px!important;padding:11px 18px 0!important;font-size:11px!important;color:#edf3fb!important}
+.screen{min-height:calc(100vh - 38px)!important;padding:15px 16px 112px!important}
+#home.screen{padding-top:13px!important}
+.hero{border-radius:27px!important;padding:19px 18px 20px!important;border:1px solid #24415c!important;background:linear-gradient(145deg,#112b45 0%,#0a1b2c 55%,#071420 100%)!important;box-shadow:0 16px 38px #0005!important}
+.hero:after{width:250px!important;height:150px!important;right:-90px!important;top:-45px!important;background:radial-gradient(circle,#2d75b955 0%,transparent 68%)!important}
+.brand{font-size:16px!important;letter-spacing:-.2px}.brandline small{font-size:12px!important;margin-top:5px;display:block}.hero h1{font-size:29px!important;line-height:1.1!important;letter-spacing:-.8px!important;margin:32px 0 7px!important}.hero p{font-size:13px!important;color:#9aaabc!important}
+.iconbtn{width:38px!important;height:38px!important;border-radius:12px!important;background:#ffffff06!important;color:#a9b9ca!important}
+.iconbtn svg{width:21px;height:21px}
+.goal{margin-top:12px!important;padding:17px!important;border-radius:21px!important;border:1px solid #213c54!important;background:linear-gradient(145deg,#10283d,#0a1928)!important;grid-template-columns:1fr 70px!important;box-shadow:0 12px 30px #0003!important}.goal>b,.goal b{font-size:17px!important}.goal strong{font-size:29px!important;margin-top:5px!important;letter-spacing:-.7px}.goal strong span{font-size:12px!important}.ring{width:64px!important;height:64px!important}.ring:before{width:48px!important;height:48px!important;background:#0b1a29!important}.ring span{font-size:12px!important}.goalbar{height:8px!important;margin-top:15px!important;background:#1b3348!important}
+.quickgrid{gap:11px!important;margin-top:12px!important}.action{min-height:128px!important;padding:16px!important;border-radius:20px!important;gap:5px!important;justify-content:flex-start!important;box-shadow:0 10px 24px #0004,inset 0 1px #ffffff09!important}.action .ico{width:40px!important;height:40px!important;border-radius:12px!important;margin-bottom:8px!important;font-size:0!important}.action .ico svg{width:22px;height:22px}.action b{font-size:15px!important;letter-spacing:-.2px}.action small{font-size:11px!important;margin-top:1px}.violet{background:linear-gradient(145deg,#131c4a,#09162a)!important;border-color:#625bff!important}.orange{background:linear-gradient(145deg,#30251c,#111a25)!important;border-color:#a86b3b!important}.green{background:linear-gradient(145deg,#07332f,#071a21)!important;border-color:#0cbca5!important}.pink{background:linear-gradient(145deg,#361b2a,#121725)!important;border-color:#b33c68!important}
+.sectionhead{margin:20px 3px 9px!important}.sectionhead b{font-size:15px!important}.link{font-size:11px!important;color:#9a8dff!important}
+.workrow{height:55px!important;border-bottom:1px solid #192c3e!important;gap:11px!important;font-size:12px!important}.workrow .mini{width:34px!important;height:34px!important;border-radius:10px!important;font-size:12px!important}.workrow em{font-size:11px!important}
+.pastHome{width:100%;margin:0!important;text-align:left!important}
+.topbar{margin-bottom:14px!important}.topbar h2{font-size:20px!important}.search{height:43px!important;border-radius:13px!important;font-size:12px!important;margin-bottom:10px!important}
+#subjects .tabs{display:none!important}.proSubject{min-height:72px!important;padding:11px 10px!important;border-radius:17px!important;margin:7px 0!important;border:1px solid #1d354c!important;background:linear-gradient(145deg,#0e2032,#091724)!important;box-shadow:0 8px 20px #0003!important}.proSubIcon{width:43px!important;height:43px!important;border-radius:13px!important;font-size:18px!important}.proSubInfo b{font-size:14px!important}.proSubInfo small{font-size:10px!important;margin-top:4px!important}.proProgress{width:48px!important;height:48px!important}.proProgress i{font-size:9px!important}.proArrow{font-size:25px!important;color:#71869b!important}
+.subjecthero{border-radius:19px!important;padding:15px!important}.bigicon{width:49px!important;height:49px!important;border-radius:13px!important}.topic{padding:13px 4px!important}.topic b{font-size:12px!important}.topic small{font-size:10px!important}.topicScore{min-width:44px!important}
+.qcard{border-radius:22px!important;padding:17px!important;box-shadow:0 12px 28px #0004!important}.qcard h3{font-size:16px!important;line-height:1.6!important}.option{padding:12px!important;border-radius:13px!important;font-size:12px!important}.letter{width:29px!important;height:29px!important}.qactions button{font-size:10px!important;padding:10px 3px!important}.qactions button small{font-size:9px!important}.primary{border-radius:14px!important;padding:14px!important;font-size:12px!important}
+.bottom{position:fixed!important;left:50%!important;right:auto!important;bottom:0!important;transform:translateX(-50%)!important;width:min(390px,100vw)!important;height:78px!important;padding:8px 10px calc(8px + env(safe-area-inset-bottom))!important;border-top:1px solid #20364c!important;background:rgba(5,13,23,.94)!important;backdrop-filter:blur(18px)!important;-webkit-backdrop-filter:blur(18px)!important;box-shadow:0 -14px 35px #0005!important;z-index:100!important;gap:4px!important}.bottom button{border-radius:15px!important;gap:4px!important;color:#72869b!important;position:relative!important}.bottom button.on{color:#eef5ff!important;background:linear-gradient(135deg,#3156d9,#3b79ee)!important;box-shadow:0 7px 22px #315ce655!important}.bottom span{font-size:0!important;width:23px;height:23px;display:grid;place-items:center}.bottom span svg{width:21px;height:21px}.bottom small{font-size:9px!important;color:inherit!important}
+.modal{z-index:200!important}.sheet{border-radius:25px 25px 0 0!important;background:linear-gradient(180deg,#0c1d2e,#07111b)!important;padding:19px!important}.sheet h3{font-size:17px!important}.sheet p,.sheet li{font-size:11px!important;line-height:1.55!important}.sheet .primary{display:block;text-align:center!important}
+@media(min-width:600px){.app{padding:18px!important}.phone{min-height:844px!important;border-radius:38px!important;border:1px solid #243c55!important;box-shadow:0 35px 100px #000,0 0 0 5px #0b1520!important}}
+`;
+document.head.appendChild(style);
+function svg(el,name){if(el&&!el.querySelector('svg')&&ICONS[name])el.innerHTML=ICONS[name]}
+function paint(){
+ document.querySelectorAll('.action .ico').forEach((el,i)=>svg(el,['bolt','grid','book','wrong'][i]||'grid'));
+ const nav=['home','book','exam','chart','user'];document.querySelectorAll('.bottom button span').forEach((el,i)=>svg(el,nav[i]||'grid'));
+ const bell=document.querySelector('.hero .iconbtn');if(bell)svg(bell,'bell');
+ document.querySelectorAll('.topbar .iconbtn,[data-go="home"].iconbtn').forEach(el=>{if(!el.querySelector('svg')&&el.textContent.trim()==='‹')el.innerHTML='<svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'});
+}
+paint();new MutationObserver(()=>paint()).observe(document.body,{childList:true,subtree:true});
+})();
