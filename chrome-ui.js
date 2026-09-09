@@ -92,7 +92,15 @@ function drawerMarkup(){
   wrap.innerHTML=`<div class="drawerShade" data-close-drawer></div><aside class="drawerPanel" role="dialog" aria-label="Bildirimler ve çalışma özeti"><div class="drawerHead"><div><div class="drawerKicker">KPSS 2026</div><div class="drawerTitle">Bugünkü Özet</div></div><button class="drawerClose" data-close-drawer aria-label="Kapat">×</button></div><section class="drawerCard primaryCard"><div class="drawerRow"><div class="drawerIcon">🎯</div><div><b>Günlük hedef</b><small>Bugün istikrarlı ilerliyorsun.</small></div></div><div class="drawerStat"><strong id="drawerGoal">2</strong><span>/ 50 soru</span></div><div class="drawerProgress"><i id="drawerProgressBar"></i></div></section><section class="drawerCard"><div class="drawerRow"><div class="drawerIcon">📚</div><div><b>Çalışma sırası</b><small>Bugün için önerilen kısa plan</small></div></div><div class="drawerList"><div class="drawerItem"><span>🧮</span><div><b>Matematik · Temel Kavramlar</b><small>10 soru • 15 dk</small></div></div><div class="drawerItem"><span>📖</span><div><b>Türkçe · Sözcükte Anlam</b><small>Ders + konu testi</small></div></div><div class="drawerItem"><span>🏛️</span><div><b>Tarih · Kurtuluş Savaşı</b><small>10 soru • tekrar</small></div></div></div></section><section class="drawerCard"><div class="drawerRow"><div class="drawerIcon">💡</div><div><b>Bugünün ipucu</b><small>Az ama düzenli çalışma daha kalıcıdır.</small></div></div><p class="drawerTip"><strong>Öneri:</strong> Önce dersi oku, ardından aynı konudan mini testi çöz. Yanlışlarını gün sonunda tekrar et.</p></section></aside>`;
   document.body.appendChild(wrap);
 }
-function openDrawer(){drawerMarkup();document.getElementById('notifyDrawer')?.classList.add('open')}
+function syncDrawerGoal(){
+  const source=document.getElementById('goalCount');
+  const target=document.getElementById('drawerGoal');
+  if(source&&target)target.textContent=(source.textContent.match(/^\d+/)||['0'])[0];
+  const bar=document.getElementById('goalBar');
+  const out=document.getElementById('drawerProgressBar');
+  if(bar&&out)out.style.width=bar.style.width||'0%';
+}
+function openDrawer(){drawerMarkup();syncDrawerGoal();document.getElementById('notifyDrawer')?.classList.add('open')}
 function closeDrawer(){document.getElementById('notifyDrawer')?.classList.remove('open')}
 document.addEventListener('click',e=>{
   const notify=e.target.closest('[data-action="notify"]');
@@ -101,10 +109,8 @@ document.addEventListener('click',e=>{
 },{capture:true});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
 
-new MutationObserver(()=>{
-  const source=document.getElementById('goalCount');const target=document.getElementById('drawerGoal');
-  if(source&&target)target.textContent=(source.textContent.match(/^\\d+/)||['0'])[0];
-  const bar=document.getElementById('goalBar'),out=document.getElementById('drawerProgressBar');
-  if(bar&&out)out.style.width=bar.style.width||'0%';
-}).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});
+/* Important: observe DOM changes, not style attributes. Updating the drawer progress
+   bar changes its style attribute; observing style here would recursively trigger the
+   observer and freeze the main thread. */
+new MutationObserver(syncDrawerGoal).observe(document.body,{childList:true,subtree:true});
 })();
