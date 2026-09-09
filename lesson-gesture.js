@@ -1,7 +1,8 @@
 (()=>{
 'use strict';
-// Lesson scrolling is intentionally native. Do not intercept touch events here:
-// the lesson body must scroll freely in both directions on mobile.
+// Lesson scrolling is intentionally native. Do not intercept touch events here.
+// When a new lesson opens, reset only that new sheet's scroll position so it
+// always starts at the beginning. Existing scrolling remains 100% native.
 const css=document.createElement('style');
 css.textContent=`
 #modal.open .sheet{
@@ -26,8 +27,26 @@ css.textContent=`
   overscroll-behavior-y:auto!important;
   touch-action:pan-y!important;
   padding-bottom:28px!important;
+  scroll-padding-top:0!important;
 }
 #modal.open #modalBody .lessonPro{min-height:100%!important}
 `;
 document.head.appendChild(css);
+
+// Runtime opens lessons through delegated click handlers. Wait until that
+// handler has rendered the new lesson, then reset its scroll position.
+// This does not listen to or cancel touch/scroll events.
+document.addEventListener('click',()=>{
+  const modal=$('modal');
+  const wasOpen=!!modal?.classList.contains('open');
+  const oldTitle=$('modalTitle')?.textContent||'';
+  requestAnimationFrame(()=>{
+    if(!modal?.classList.contains('open'))return;
+    const newTitle=$('modalTitle')?.textContent||'';
+    if((!wasOpen)||newTitle!==oldTitle){
+      const body=$('modalBody');
+      if(body)body.scrollTop=0;
+    }
+  });
+},true);
 })();
