@@ -7,6 +7,9 @@ css.textContent=`
 .status{display:flex!important;align-items:center!important;justify-content:space-between!important}
 .status #clock{font-size:13px!important;color:#f3f7fc!important;background:rgba(18,38,57,.72)!important;border:1px solid #27445d!important;border-radius:10px!important;padding:5px 9px!important;line-height:1!important;box-shadow:0 6px 18px #0003!important}
 .status>span:last-child{opacity:.72!important;letter-spacing:2px!important}
+#appMenuBtn{width:38px;height:34px;border:1px solid #27445d;border-radius:11px;background:rgba(18,38,57,.72);color:#a9bdd1;display:grid;place-items:center;box-shadow:0 6px 18px #0003;cursor:pointer;margin-left:auto}
+#appMenuBtn svg{width:20px;height:20px}
+#appMenuBtn:active{transform:scale(.95);background:#16314a}
 .phone.premium-fullscreen{width:100vw!important;max-width:none!important;height:100dvh!important;min-height:100dvh!important;border-radius:0!important;box-shadow:none!important}
 html.app-fullscreen,body.app-fullscreen{overflow:hidden!important;background:#02060c!important}
 .app-fullscreen .app{height:100dvh!important;min-height:100dvh!important}
@@ -52,12 +55,12 @@ function toggleFullscreen(){
   else {doc.classList.add('app-fullscreen');document.body.classList.add('app-fullscreen');phone.classList.add('premium-fullscreen');}
 }
 document.addEventListener('dblclick',e=>{
-  if(e.target.closest('#notifyDrawer'))return;
+  if(e.target.closest('#notifyDrawer')||e.target.closest('#appMenuBtn'))return;
   toggleFullscreen();
 });
 let tapTimer=0,tapStamp=0;
 document.addEventListener('touchend',e=>{
-  if(e.target.closest('#notifyDrawer'))return;
+  if(e.target.closest('#notifyDrawer')||e.target.closest('#appMenuBtn'))return;
   const now=Date.now();
   if(now-tapStamp<320){clearTimeout(tapTimer);tapStamp=0;toggleFullscreen();}
   else{tapStamp=now;tapTimer=setTimeout(()=>{tapStamp=0},340);}
@@ -69,6 +72,19 @@ document.addEventListener('fullscreenchange',()=>{
   document.body.classList.toggle('app-fullscreen',on);
   phone?.classList.toggle('premium-fullscreen',on);
 });
+
+function ensureMenu(){
+  const status=document.querySelector('.status');
+  if(!status||document.getElementById('appMenuBtn'))return;
+  const old=status.querySelector('span:last-child');
+  if(old)old.style.display='none';
+  const btn=document.createElement('button');
+  btn.id='appMenuBtn';btn.type='button';btn.setAttribute('aria-label','Menüyü aç');btn.setAttribute('data-action','notify');
+  btn.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  status.appendChild(btn);
+}
+ensureMenu();
+new MutationObserver(ensureMenu).observe(document.body,{childList:true,subtree:true});
 
 function drawerMarkup(){
   if(document.getElementById('notifyDrawer'))return;
@@ -85,7 +101,6 @@ document.addEventListener('click',e=>{
 },{capture:true});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
 
-// Keep the drawer goal synced with the app's live daily count when it changes.
 new MutationObserver(()=>{
   const source=document.getElementById('goalCount');const target=document.getElementById('drawerGoal');
   if(source&&target)target.textContent=(source.textContent.match(/^\\d+/)||['0'])[0];
