@@ -1,70 +1,129 @@
 (()=>{
 'use strict';
-// Lesson sheet owns the area above the fixed bottom navigation. Lesson content
-// scrolls to its real end before any downward pull can dismiss the sheet.
+/*
+ * Keep lesson content natively scrollable. The previous version applied
+ * touch-action:none to the sheet, which could block the browser's vertical
+ * scroll gesture. We now let the browser own scrolling and only intercept a
+ * downward pull when the lesson body is already at scrollTop=0.
+ */
 const css=document.createElement('style');
 css.textContent=`
-#modal.open .sheet{display:flex!important;flex-direction:column!important;position:absolute!important;left:0!important;right:0!important;bottom:78px!important;max-height:calc(100vh - 130px)!important;overflow:hidden!important;touch-action:none!important}
-#modal.open #modalBody{display:block!important;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior-y:contain!important;touch-action:pan-y!important;padding-bottom:28px!important}
-#modal.open #modalBody .lessonPro{min-height:100%!important}
+#modal.open .sheet{
+  display:flex!important;
+  flex-direction:column!important;
+  position:absolute!important;
+  left:0!important;
+  right:0!important;
+  bottom:78px!important;
+  max-height:calc(100dvh - 130px)!important;
+  overflow:hidden!important;
+  touch-action:pan-y!important;
+}
+#modal.open #modalBody{
+  display:block!important;
+  flex:1 1 auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  -webkit-overflow-scrolling:touch!important;
+  overscroll-behavior-y:contain!important;
+  touch-action:pan-y!important;
+  padding-bottom:28px!important;
+}
+#modal.open #modalBody .lessonPro,
+#modal.open #modalBody .lessonBody{
+  min-height:100%!important;
+}
 `;
 document.head.appendChild(css);
 
-const st={active:false,startY:0,lastY:0,offset:0,startedAtTop:false};
+const st={
+  active:false,
+  startY:0,
+  lastY:0,
+  offset:0,
+  startedAtTop:false,
+  pulling:false
+};
+
 const getSheet=()=>document.querySelector('#modal.open .sheet');
-const getScroll=sheet=>sheet?.querySelector('#modalBody')||sheet;
+const getScroll=sheet=>sheet?.querySelector('#modalBody');
+const reset=()=>{
+  st.active=false;
+  st.startY=0;
+  st.lastY=0;
+  st.offset=0;
+  st.startedAtTop=false;
+  st.pulling=false;
+};
 
 document.addEventListener('touchstart',e=>{
   const sheet=getSheet(),t=e.touches?.[0];
   if(!sheet||!t)return;
   const sc=getScroll(sheet);
+  if(!sc)return;
   st.active=true;
   st.startY=t.clientY;
   st.lastY=t.clientY;
   st.offset=0;
-  st.startedAtTop=(sc.scrollTop<=0);
-  sheet.style.transition='';
+  st.startedAtTop=sc.scrollTop<=1;
+  st.pulling=false;
 },{capture:true,passive:true});
 
 document.addEventListener('touchmove',e=>{
   if(!st.active)return;
-  const sheet=getSheet(),t=e.touches?.[0];
-  if(!sheet||!t){st.active=false;return;}
-  const sc=getScroll(sheet);
-  const dy=t.clientY-st.lastY;
-  const total=t.clientY-st.startY;
+  const sheet=getSheet(),sc=getScroll(sheet),t=e.touches?.[0];
+  if(!sheet||!sc||!t){reset();return;}
+
   const dx=t.clientX-(e.touches[0]?.clientX||t.clientX);
+  const total=t.clientY-st.startY;
+  const dy=t.clientY-st.lastY;
 
-  if(Math.abs(total)<Math.abs(dx))return;
-
-  // While the lesson has content above the viewport, native scrolling owns it.
-  if(sc.scrollTop>0){
-    st.startedAtTop=false;
+  /* Horizontal gestures are ignored completely. */
+  if(Math.abs(total)<Math.abs(dx)){
     st.lastY=t.clientY;
     return;
   }
 
-  // Only a downward pull that starts at the very top can drag the sheet.
-  if(dy>0 && st.startedAtTop){
-    st.offset=Math.min(300,st.offset+dy);
-    if(st.offset>0){
+  /* Once the lesson is scrolled down, never hijack the native scroll. */
+  if(sc.scrollTop>1){
+    st.startedAtTop=false;
+    st.pulling=false;
+    st.lastY=t.clientY;
+    return;
+  }
+
+  /* Upward movement at the top should remain a native scroll gesture. */
+  if(total<0){
+    st.startedAtTop=false;
+    st.pulling=false;
+    st.lastY=t.clientY;
+    return;
+  }
+
+  /* Downward pull from the very top may dismiss the sheet. */
+  if(st.startedAtTop && dy>0){
+    st.pulling=true;
+    st.offset=Math.min(260,Math.max(0,st.offset+dy));
+    if(st.offset>6){
       e.preventDefault();
-      e.stopImmediatePropagation();
-      sheet.style.transform=`translateY(${st.offset}px)`;
       sheet.style.transition='none';
+      sheet.style.transform=`translateY(${st.offset}px)`;
     }
   }
   st.lastY=t.clientY;
 },{capture:true,passive:false});
 
-document.addEventListener('touchend',e=>{
+document.addEventListener('touchend',()=>{
   if(!st.active)return;
   const sheet=getSheet();
-  if(!sheet){st.active=false;return;}
-  if(st.offset>0){
-    e.stopImmediatePropagation();
+  if(!sheet){reset();return;}
+
+  if(st.pulling&&st.offset>0){
+    const amount=st.offset;
     sheet.style.transition='transform .2s ease';
-    if(st.offset>=90){
+    if(amount>=90){
       sheet.style.transform='translateY(105%)';
       setTimeout(()=>{
         document.getElementById('modal')?.classList.remove('open');
@@ -73,17 +132,18 @@ document.addEventListener('touchend',e=>{
       },180);
     }else{
       sheet.style.transform='translateY(0)';
-      setTimeout(()=>{sheet.style.transform='';sheet.style.transition=''},210);
+      setTimeout(()=>{
+        sheet.style.transform='';
+        sheet.style.transition='';
+      },210);
     }
   }
-  st.active=false;
-  st.offset=0;
-  st.startedAtTop=false;
+  reset();
 },{capture:true,passive:true});
 
 document.addEventListener('touchcancel',()=>{
-  const s=getSheet();
-  if(s&&st.offset>0){s.style.transform='';s.style.transition=''}
-  st.active=false;st.offset=0;st.startedAtTop=false;
+  const sheet=getSheet();
+  if(sheet){sheet.style.transform='';sheet.style.transition='';}
+  reset();
 },{capture:true,passive:true});
 })();
